@@ -1,4 +1,5 @@
 ---
+# Collections necessárias para gerenciamento de tarefas e comandos no Windows
 collections:
   - name: ansible.windows
   - name: community.windows

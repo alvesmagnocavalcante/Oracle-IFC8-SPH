@@ -1,8 +1,10 @@
 ---
+# Playbook para monitorar e iniciar a instância SPH do Oracle IFC8 no Windows
 - name: Verificar e iniciar Oracle IFC8 SPH
   hosts: ifc8_windows
   gather_facts: false
 
+  # Caminhos da aplicação e configurações da tarefa agendada
   vars:
     ifc_executable: 'C:\Fidelio\Ifc8.Net\IfcApplication\IfcApplication.exe'
     ifc_config: 'C:\Fidelio\Ifc8.Net\IfcApplication\SPH\Ifc8NetConfigSPH.Xml'
@@ -10,6 +12,7 @@
     ifc_user: 'interfaces'
 
   tasks:
+    # Cria/atualiza a tarefa agendada para rodar na sessão interativa do usuário
     - name: Garantir tarefa de inicialização do IFC8
       community.windows.win_scheduled_task:
         name: "{{ ifc_task_name }}"
@@ -24,11 +27,12 @@
         username: "{{ ifc_user }}"
         logon_type: interactive_token
         run_level: highest
-        multiple_instances: 2
-        execution_time_limit: PT0S
+        multiple_instances: 2 # Não inicia nova instância se já estiver rodando
+        execution_time_limit: PT0S # Sem limite de tempo de execução
         enabled: true
         state: present
 
+    # Checa via WMI/CIM se o processo específico da instância SPH está em execução
     - name: Verificar processo da instância SPH
       ansible.windows.win_powershell:
         script: |
@@ -40,6 +44,7 @@
           $Ansible.Changed = $false
       register: ifc_status
 
+    # Dispara a tarefa agendada caso o processo não tenha sido encontrado
     - name: Iniciar IFC8 quando estiver parado
       ansible.windows.win_command:
         cmd: 'schtasks.exe /Run /TN "{{ ifc_task_name }}"'
@@ -47,11 +52,13 @@
       register: ifc_start
       changed_when: true
 
+    # Aguarda o processo subir antes de validar
     - name: Aguardar inicialização
       ansible.builtin.pause:
         seconds: 10
       when: ifc_start is changed
 
+    # Valida se o processo realmente iniciou e retorna o PID (falha caso contrário)
     - name: Confirmar que a instância está ativa
       ansible.windows.win_powershell:
         script: |
